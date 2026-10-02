@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from typing import Any
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -23,13 +24,14 @@ class UserOut(BaseModel):
 
 
 class CompanyCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+
+
+class CompanyOut(BaseModel):
+    id: UUID
     name: str
-    domain: str | None = None
-
-
-class CompanyOut(CompanyCreate):
-    id: int
-    owner_id: int
+    created_by: UUID
+    created_at: datetime
 
 
 class JobCreate(BaseModel):

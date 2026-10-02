@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -10,7 +10,7 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)]
-):
+) -> dict[str, Any]:
     if credentials is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -58,4 +58,16 @@ async def get_current_user(
         "id": result.data["id"],
         "name": result.data["full_name"],
         "role": result.data["role"],
+        "auth_id": auth_user.id,
     }
+
+
+async def require_hr_user(
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+) -> dict[str, Any]:
+    if current_user["role"] != "HR":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="HR role required",
+        )
+    return current_user

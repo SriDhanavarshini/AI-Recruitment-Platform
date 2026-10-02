@@ -9,7 +9,11 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.get("/me")
 def get_me(current_user=Depends(get_current_user)):
-    return current_user
+    return {
+        "id": current_user["id"],
+        "name": current_user["name"],
+        "role": current_user["role"],
+    }
 
 
 @router.post("/login", response_model=TokenResponse)
