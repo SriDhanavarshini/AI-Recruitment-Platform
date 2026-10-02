@@ -71,3 +71,14 @@ async def require_hr_user(
             detail="HR role required",
         )
     return current_user
+
+
+async def require_candidate_user(
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+) -> dict[str, Any]:
+    if current_user["role"] != "CANDIDATE":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Candidate role required",
+        )
+    return current_user

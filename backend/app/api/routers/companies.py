@@ -1,5 +1,4 @@
 from typing import Any
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -18,7 +17,7 @@ def list_companies(current_user: dict[str, Any] = Depends(require_hr_user)):
         result = (
             supabase.table("companies")
             .select(COMPANY_COLUMNS)
-            .eq("created_by", current_user["auth_id"])
+            .eq("created_by", current_user["id"])
             .order("created_at", desc=True)
             .execute()
         )
@@ -39,7 +38,7 @@ def create_company(
     try:
         result = (
             supabase.table("companies")
-            .insert({"name": payload.name, "created_by": current_user["auth_id"]})
+            .insert({"name": payload.name, "created_by": current_user["id"]})
             .select(COMPANY_COLUMNS)
             .single()
             .execute()
@@ -55,15 +54,15 @@ def create_company(
 
 @router.get("/{company_id}", response_model=CompanyOut)
 def get_company(
-    company_id: UUID,
+    company_id: int,
     current_user: dict[str, Any] = Depends(require_hr_user),
 ):
     try:
         result = (
             supabase.table("companies")
             .select(COMPANY_COLUMNS)
-            .eq("id", str(company_id))
-            .eq("created_by", current_user["auth_id"])
+            .eq("id", company_id)
+            .eq("created_by", current_user["id"])
             .maybe_single()
             .execute()
         )

@@ -1,8 +1,8 @@
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class TokenResponse(BaseModel):
@@ -28,46 +28,126 @@ class CompanyCreate(BaseModel):
 
 
 class CompanyOut(BaseModel):
-    id: UUID
+    id: int
     name: str
-    created_by: UUID
+    created_by: int
     created_at: datetime
 
 
 class JobCreate(BaseModel):
-    company_id: int
-    title: str
-    description: str
+    model_config = ConfigDict(extra="forbid")
+
+    company_id: UUID
+    title: str = Field(min_length=1, max_length=255)
+    description: str = Field(min_length=1)
     required_skills: list[str] = Field(default_factory=list)
     required_experience: str | None = None
     location: str | None = None
-    employment_type: str = "FULL_TIME"
-    status: str = "OPEN"
+    employment_type: Literal["FULL_TIME", "PART_TIME", "INTERNSHIP", "CONTRACT"]
+
+    @field_validator("title", "description")
+    @classmethod
+    def reject_blank_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("must not be empty")
+        return value
 
 
-class JobOut(JobCreate):
-    id: int
-    created_at: datetime | None = None
+class JobUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    company_id: UUID | None = None
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = Field(default=None, min_length=1)
+    required_skills: list[str] | None = None
+    required_experience: str | None = None
+    location: str | None = None
+    employment_type: Literal["FULL_TIME", "PART_TIME", "INTERNSHIP", "CONTRACT"] | None = None
+
+    @field_validator("title", "description")
+    @classmethod
+    def reject_blank_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if not value:
+            raise ValueError("must not be empty")
+        return value
+
+    @model_validator(mode="after")
+    def require_valid_updates(self):
+        if not self.model_fields_set:
+            raise ValueError("at least one job field must be provided")
+        non_nullable = {"company_id", "title", "description", "required_skills", "employment_type"}
+        if any(name in self.model_fields_set and getattr(self, name) is None for name in non_nullable):
+            raise ValueError("provided job fields cannot be null")
+        return self
+
+
+class JobStatusUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["OPEN", "CLOSED"]
+
+
+class JobOut(BaseModel):
+    id: UUID
+    company_id: UUID
+    title: str
+    description: str
+    required_skills: list[str]
+    required_experience: str | None = None
+    location: str | None = None
+    employment_type: Literal["FULL_TIME", "PART_TIME", "INTERNSHIP", "CONTRACT"]
+    status: Literal["OPEN", "CLOSED"]
+    created_at: datetime
+    updated_at: datetime
+
+
+class OpenJobOut(BaseModel):
+    id: UUID
+    title: str
+    description: str
+    required_skills: list[str]
+    required_experience: str | None = None
+    location: str | None = None
+    employment_type: Literal["FULL_TIME", "PART_TIME", "INTERNSHIP", "CONTRACT"]
+    status: Literal["OPEN"]
+    created_at: datetime
 
 
 class ResumeUpload(BaseModel):
-    candidate_id: int
+    id: UUID
+    candidate_id: UUID
+    file_name: str
     file_url: str
-    storage_path: str
-    extracted_skills: list[str] = Field(default_factory=list)
+    uploaded_at: datetime
 
 
 class ApplicationCreate(BaseModel):
-    candidate_id: int
-    job_id: int
-    resume_id: int
+    job_id: UUID
+    resume_id: UUID
 
 
-class ApplicationOut(ApplicationCreate):
-    id: int
+class ApplicationJobInfo(BaseModel):
+    id: UUID
+    title: str
+    description: str
+    required_skills: list[str]
+    required_experience: str | None = None
+    location: str | None = None
+    employment_type: str
     status: str
-    ats_score: float = 0.0
-    created_at: datetime | None = None
+
+
+class ApplicationOut(BaseModel):
+    id: UUID
+    job_id: UUID
+    resume_id: UUID
+    status: str
+    applied_at: datetime
+    job: ApplicationJobInfo | None = None
 
 
 class ATSResultCreate(BaseModel):
